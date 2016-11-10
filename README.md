@@ -22,3 +22,6 @@ This code will be updated as well as builds for future releases.
 
 Please share your changes or contact me if you have questions. (josh.menzel@yahoo.com)
 It shouldn't matter which version of linux you are using as long as it's debian based.
+
+
+I AM NOT RESPONSIBLE FOR ANY DAMAGES DONE BY THIS SOFTWARE! USE AT YOUR OWN RISK!
