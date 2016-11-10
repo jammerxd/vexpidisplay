@@ -7,6 +7,8 @@ on the computer running the tournament manager(windows only)
 
 Then start Tournament Manager and the Web Server. 
 
+Before running the program on the pi, please run the install.sh script in bash.
+
 Next, go onto a raspberry pi and run the VEX Display program
 and enter the ip address of the tournament manager pc,
 preceeded by http:// and proceeded by /division# where #
