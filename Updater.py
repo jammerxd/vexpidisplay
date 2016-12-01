@@ -2,7 +2,7 @@ import time
 import threading
 import json
 #from urllib.request import urlopen
-from urllib2 import urlopen
+import urllib2
 #import urlib
 #import urllib2
 
@@ -121,7 +121,7 @@ class UpdateInfo(object):
         self.getTeams()
         self.getRankings()
         self.getMatches()
-    def getTeams(self):
+    def getTeams_old(self):
         raw_html = self.getURL("/teams")
         if(raw_html != ""):
             tableBody = raw_html.split("<tbody>")[1]
@@ -146,15 +146,37 @@ class UpdateInfo(object):
                 else:
                     time.sleep(30)
                     self.getTeams()
-    def getRankings(self):
-        raw_html = self.getURL("/rankings")
+    def getTeams(self):
+        jsonStr = self.getURL("/teams",False)
+        if(jsonStr != "" and jsonStr != None):
+            jsonData = json.loads(jsonStr)["teams"]
+            
+            for data in jsonData:
+                tempTeam = Team()
+                tempTeam.number = data["number"]
+                tempTeam.name = data["name"]
+                tempTeam.school = data["school"]
+                tempTeam.location = data["town"] + ", " + data["state"] + ", " + data["country"]
+                self.teams[tempTeam.number] = tempTeam
+                if self.maxTeamNameChars < len(tempTeam.name):
+                    self.maxTeamNameChars = len(tempTeam.name)
+        else:
+            time.sleep(5)
+            self.getTeams()
+    def getRankings_old(self):#OLD
+        print "RANKING FETCH"
+        raw_html = self.getURL("/rankings",False,True)
+        #print raw_html
         if(raw_html != ""):
             tableBody = raw_html.split("<tbody>")[1]
             tableBody = tableBody.split("</tbody>")[0]
+            
             tI = 0
             for row in tableBody.split("<tr>"):
                 raw_data = row.replace("</tr>","").replace("<td>","").replace("<td class=\"td-centered\">","").replace("<td class=\"td-centered\" nowrap=\"nowrap\">","").replace("</td>","").split('\n')
-                
+                #raw_data = []
+                #print str(row)
+                #print len(raw_data)
                 if len(raw_data) == 13:
                     teamNumber = str(raw_data[2])
                     self.teams[teamNumber].rank = str(raw_data[1])
@@ -188,103 +210,122 @@ class UpdateInfo(object):
             self.ranksAvail = False
         else:
             self.ranksAvail = True
+    def getRankings(self):
+        jsonStr = self.getURL("/ranks")#NEW
+        if(jsonStr != "" and jsonStr != None):
+            jsonData = json.loads(jsonStr)["ranks"]
+            tI = 0
+            for data in jsonData:
+                teamNumber = data["number"]
+                self.teams[teamNumber].rank = data["rank"]
+                self.teams[teamNumber].wins = data["wins"]
+                self.teams[teamNumber].losses = data["losses"]
+                self.teams[teamNumber].ties = data["ties"]
+                self.teams[teamNumber].wps = data["wps"]
+                self.teams[teamNumber].aps = data["aps"]
+                self.teams[teamNumber].sps = data["sps"]
+                self.ranks[str(tI+1)] = teamNumber
+                self.teams[teamNumber].ranksStr = str(self.teams[teamNumber].rank).rjust(len(str(len(self.teams)))) + "  "
+                self.teams[teamNumber].ranksStr += '{:^6}'.format(str(self.teams[teamNumber].number)) + "  "
+                self.teams[teamNumber].ranksStr += str('{:^'+str(self.maxTeamNameChars)+'}').format(str(self.teams[teamNumber].name)) + "  "
+                self.teams[teamNumber].ranksStr += '{:^8}'.format(str(self.teams[teamNumber].wins) + "-" + self.teams[teamNumber].losses + "-" + self.teams[teamNumber].ties) + "  "
+                self.teams[teamNumber].ranksStr += '{:^11}'.format(str(self.teams[teamNumber].wps) + "-" + self.teams[teamNumber].aps + "-" + self.teams[teamNumber].sps) + "  "
+                if len(self.teams[teamNumber].ranksStr) > self.maxRankChars:
+                    self.maxRankChars = len(self.teams[teamNumber].ranksStr)                 
+                tI += 1
+        if len(self.ranks) == 0:
+            i = 0
+            for team in self.teams:
+                self.teams[team].rank = str(i+1)
+                self.teams[team].wins = "0"
+                self.teams[team].losses = "0"
+                self.teams[team].ties = "0"
+                self.teams[team].wps = "0"
+                self.teams[team].aps = "0"
+                self.teams[team].sps = "0"
+                self.ranks[str(i+1)] = self.teams[team].number
+                self.teams[teamNumber].ranksStr = str(self.teams[teamNumber].rank).rjust(len(str(len(self.teams)))) + "  "
+                self.teams[teamNumber].ranksStr += '{:^6}'.format(str(self.teams[teamNumber].number)) + "  "
+                self.teams[teamNumber].ranksStr += str('{:^'+str(self.maxTeamNameChars)+'}').format(str(self.teams[teamNumber].name)) + "  "
+                self.teams[teamNumber].ranksStr += '{:^8}'.format(str(self.teams[teamNumber].wins) + "-" + self.teams[teamNumber].losses + "-" + self.teams[teamNumber].ties) + "  "
+                self.teams[teamNumber].ranksStr += '{:^11}'.format(str(self.teams[teamNumber].wps) + "-" + self.teams[teamNumber].aps + "-" + self.teams[teamNumber].sps) + "  "
+                if len(self.teams[teamNumber].ranksStr) > self.maxRankChars:
+                    self.maxRankChars = len(self.teams[teamNumber].ranksStr)                
+                i += 1
+            self.ranksAvail = False
+        else:
+            self.ranksAvail = True
+     
     def getMatches(self):
+        
         #self.matches = []
         self.updatedMatches = []
         raw_html = self.getURL("/matches")
         foundMatchScored = False
-        if(raw_html != ""):
-            tableBody = raw_html.split("<tbody>")[1]
-            tableBody = tableBody.split("</tbody>")[0]
+        if(raw_html != "" and raw_html != None):
+            jsonData = json.loads(raw_html)["matches"]
             index = 0
-
-            matchI = 0
-            fieldI = 1
-            timeI = 2
-            redTeam1I = 3
-            redTeam2I = 4
-            blueTeam1I = 5
-            blueTeam2I = 6
-            redScoreI = 7
-            blueScoreI = 8
-            matchScoredI = 9
             fieldCount = 0
             self.showMatches = {}
-            for row in tableBody.split("<tr>"):
+            for row in jsonData:
                 tempMatch = Match()
-                raw_data = row.replace("</tr>","").split("<td")
-                if len(raw_data) == 11:
-                    for x in range(0,len(raw_data)):
-                        start = raw_data[x].find(">") + 1
-                        end = raw_data[x].rfind("<",start)
-                        raw_data[x] = raw_data[x][start:end].replace('\n','')
-                    raw_data[len(raw_data)-1] =  raw_data[len(raw_data)-1][0:raw_data[len(raw_data)-1].rfind("</td")]
-
-                    del raw_data[0]
-                    
-                    start = raw_data[redScoreI].find(">") + 1
-                    end = raw_data[redScoreI].rfind("</strong",start)
-                    end  = end if end > 0  else len(raw_data[redScoreI])
-                    raw_data[redScoreI] = raw_data[redScoreI][start:end]
-
-                    start = raw_data[blueScoreI].find(">") + 1
-                    end = raw_data[blueScoreI].rfind("</strong",start)
-                    end  = end if end > 0  else len(raw_data[blueScoreI])
-                    raw_data[blueScoreI] = raw_data[blueScoreI][start:end]
-
-                    tempMatch.match = raw_data[matchI]
-                    tempMatch.blueScore = raw_data[blueScoreI]
-                    tempMatch.redScore = raw_data[redScoreI]
-                    tempMatch.redTeams.append(raw_data[redTeam1I])
-                    tempMatch.redTeams.append(raw_data[redTeam2I])
                 
-                    tempMatch.blueTeams.append(raw_data[blueTeam1I])
-                    tempMatch.blueTeams.append(raw_data[blueTeam2I])
-                    tempMatch.field = raw_data[fieldI]
-                    tempMatch.matchScored = True if raw_data[matchScoredI] == "Yes" else False
-                    if os.name == 'nt':
-                        tempMatch.time = time.strftime('%I:%M %p', time.localtime(int(raw_data[timeI]))).upper()
-                        if tempMatch.time[0] == "0":
-                            tempMatch.time = tempMatch.time[1:]
-                    else:
-                        tempMatch.time = time.strftime('%-I:%M %p', time.localtime(int(raw_data[timeI]))).upper()
-                    if tempMatch.field not in self.fieldMatches:
-                        self.fieldMatches[tempMatch.field] = FieldSet(tempMatch.field)
-                        self.fieldOrder[fieldCount] = tempMatch.field
-                        fieldCount += 1
+                
 
-                    if index not in self.fieldMatches[tempMatch.field].matchList:
-                        self.fieldMatches[tempMatch.field].matchList.append(index)
-                    elif index not in self.fieldMatches[tempMatch.field].completedMatches and tempMatch.matchScored == True:
-                        self.fieldMatches[tempMatch.field].completedMatches.append(index)
+                tempMatch.match = row["match"]
+                tempMatch.blueScore = row["blueScore"]
+                tempMatch.redScore = row["redScore"]
+                tempMatch.redTeams.append(row["red1"])
+                tempMatch.redTeams.append(row["red2"])
+            
+                tempMatch.blueTeams.append(row["blue1"])
+                tempMatch.blueTeams.append(row["blue2"])
+                tempMatch.field = row["field"]
+                tempMatch.matchScored = row["scored"]
+                #print tempMatch.match + " | " + str(tempMatch.matchScored)
+                if os.name == 'nt':
+                    tempMatch.time = time.strftime('%I:%M %p', time.localtime(int(row["scheduledTime"]))).upper()
+                    if tempMatch.time[0] == "0":
+                        tempMatch.time = tempMatch.time[1:]
+                else:
+                    tempMatch.time = time.strftime('%-I:%M %p', time.localtime(int(raw_data["scheduledTime"]))).upper()
+                if tempMatch.field not in self.fieldMatches:
+                    self.fieldMatches[tempMatch.field] = FieldSet(tempMatch.field)
+                    self.fieldOrder[fieldCount] = tempMatch.field
+                    fieldCount += 1
 
-                    if tempMatch.matchScored:
-                        self.fieldMatches[tempMatch.field].lastMatch = index
-                        self.lastMatchScored = index
-                        foundMatchScored = True
+                if index not in self.fieldMatches[tempMatch.field].matchList:
+                    self.fieldMatches[tempMatch.field].matchList.append(index)
+                elif index not in self.fieldMatches[tempMatch.field].completedMatches and tempMatch.matchScored == True:
+                    self.fieldMatches[tempMatch.field].completedMatches.append(index)
+
+                if tempMatch.matchScored:
+                    self.fieldMatches[tempMatch.field].lastMatch = index
+                    self.lastMatchScored = index
+                    foundMatchScored = True
+                else:
+                    tempMatch.redScore = ""
+                    tempMatch.blueScore = ""
+                    if self.fieldMatches[tempMatch.field].nextMatch == None:
+                        self.fieldMatches[tempMatch.field].nextMatch = self.fieldMatches[tempMatch.field].matchList.index(index)
                     else:
-                        tempMatch.redScore = ""
-                        tempMatch.blueScore = ""
-                        if self.fieldMatches[tempMatch.field].nextMatch == None:
-                            self.fieldMatches[tempMatch.field].nextMatch = self.fieldMatches[tempMatch.field].matchList.index(index)
-                        else:
-                            if index-1 in self.matches:
-                                if self.fieldMatches[tempMatch.field].nextMatch < index and self.matches[index-1].matchScored == True:
-                                    self.fieldMatches[tempMatch.field].nextMatch = self.fieldMatches[tempMatch.field].matchList.index(index)
-                        self.matchesUnscored = True   
-                        
-                    if index in self.matches:
-                        if self.matches[index] != tempMatch:
-                            tempMatch.updated = True
-                        if self.matches[index].redScore != tempMatch.redScore or self.matches[index].blueScore != tempMatch.blueScore:
-                            tempMatch.scoresUpdated = True
-                    else:
+                        if index-1 in self.matches:
+                            if self.fieldMatches[tempMatch.field].nextMatch < index and self.matches[index-1].matchScored == True:
+                                self.fieldMatches[tempMatch.field].nextMatch = self.fieldMatches[tempMatch.field].matchList.index(index)
+                    self.matchesUnscored = True   
+                    
+                if index in self.matches:
+                    if self.matches[index] != tempMatch:
                         tempMatch.updated = True
+                    if self.matches[index].redScore != tempMatch.redScore or self.matches[index].blueScore != tempMatch.blueScore:
+                        tempMatch.scoresUpdated = True
+                else:
+                    tempMatch.updated = True
 
-                    if tempMatch.updated or tempMatch.scoresUpdated:
-                        self.updatedMatches.append(index)
-					
-                    self.matches[index] = tempMatch
+                if tempMatch.updated or tempMatch.scoresUpdated:
+                    self.updatedMatches.append(index)
+                                    
+                self.matches[index] = tempMatch
                 index += 1
             if len(self.matches) > 0:
                 if foundMatchScored == False:
@@ -294,7 +335,7 @@ class UpdateInfo(object):
                     self.matches[self.lastMatchScored+1].onField = True
                 for field in range(len(self.fieldOrder)):
                     if self.lastMatchScored+2+field in self.matches:
-                       self.matches[self.lastMatchScored+2+field].onDeck = True
+                        self.matches[self.lastMatchScored+2+field].onDeck = True
                    
                 for i in range(len(self.fieldOrder),-1,-1):
                     number = self.lastMatchScored-i
@@ -303,13 +344,22 @@ class UpdateInfo(object):
                         match += 1
                 i = 0
                 if self.matchesUnscored:
-                            
-                    while len(self.showMatches) < 8:
-                        number = self.lastMatchScored+1+i
-                        if number in self.matches:
-                            self.showMatches[match] = number
-                            match+=1
-                            i+=1
+                    if (len(self.matches) - 1 - self.lastMatchScored < (8-len(self.showMatches))):
+                        for i in range(len(self.matches) - self.lastMatchScored):
+                            number = self.lastMatchScored+1+i
+                            if number in self.matches:
+                                self.showMatches[match] = number
+                                match+=1
+                                i+=1 
+                    else:
+                        while len(self.showMatches) < 8:
+                            number = self.lastMatchScored+1+i
+                            if number in self.matches:
+                                self.showMatches[match] = number
+                                match+=1
+                                i+=1
+                            else:
+                                break
 ##                        else:
 ##                            i=0
 ##                            while len(self.showMatches) < 8:
@@ -323,21 +373,35 @@ class UpdateInfo(object):
         
     def getEventName(self):
         
-        raw_html = self.getURL("")
-        if raw_html != "":
-            name = raw_html.split("<title>")[1].split("</title")[0].split("::")[1]
-            self.eventName = name
-    def getURL(self,URL=""):
+        raw_html = self.getURL("/eventName",True)
+        if raw_html != "" and raw_html != None:
+            self.eventName = raw_html
+    def getURL(self,URL="",mainDir = False,useWebServer = False):#URL - the sub url to go to inside the division, if mainDir is True, it will skip the division folder. useWebServer URL boolean is to use the TM web server.
         try:
-            data = urlopen(self.serverURL + URL).read().decode('utf-8')
+            if (mainDir):
+                uri = self.serverURL[:self.serverURL.rfind("/")] + URL
+            elif (useWebServer):
+                uri = self.serverURL[:self.serverURL.rfind(":")] 
+                temp = self.serverURL[self.serverURL.rfind(":")+1:]
+                uri += temp[temp.find("/"):] + URL
+                
+                
+            else:
+                uri = self.serverURL + URL
+            opener = urllib2.build_opener()
+            opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+            data = opener.open(uri).read().decode('utf-8')
             self.dataUpdateSuccess = True
         except Exception,ex:
             data = ""
             self.dataUpdateSuccess = False
         return data
     
-##update = UpdateInfo("http://localhost:8080/division1","./sponsors")
-##update.start()
+#update = UpdateInfo("http://192.168.1.72:8989/division1","./sponsors")
+#update.getTeams()
+#update.getEventName()
+#update.getRankings()
+#update.getMatches()
 ##choice = 'y'
 ##while choice != 'n':
 ##    update.start()

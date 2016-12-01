@@ -30,10 +30,10 @@ class MatchPanel(wx.Panel):
 
             self.field = Header(self,-1,match.field,wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.NORMAL,faceName="NotoSans"),Colors["vexTxtGray"])
             self.time = Header(self,-1,match.time,wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.NORMAL,faceName="NotoSans"),Colors["vexTxtGray"])
-            if match.onField:
-                self.time.SetLabel("On Field")
-            if match.onDeck:
-                self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
+            #if match.onField:
+            #    self.time.SetLabel("On Field")#ON FIELD
+            #if match.onDeck:
+            #    self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
                 
             if match.matchScored == True:
                 self.field.Hide()
@@ -82,14 +82,14 @@ class MatchPanel(wx.Panel):
             self.field.SetLabel(match.field)
             self.time.SetLabel(match.time)
             
-            if match.onField:
-                self.time.SetLabel("On Field")
-                self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
-            elif match.onDeck:
-                self.time.SetLabel("On Deck")
-                self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
-            else:
-                self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.NORMAL,faceName="NotoSans"))
+            #if match.onField:
+            #    self.time.SetLabel("On Field")
+            #    self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
+            #elif match.onDeck:
+            #    self.time.SetLabel("On Deck")
+            #    self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.BOLD,faceName="NotoSans"))
+            #else:
+            #    self.time.SetFont(wx.Font(22,wx.DEFAULT,wx.NORMAL,wx.NORMAL,faceName="NotoSans"))
                 
             if match.matchScored == True:
                 self.field.Hide()
@@ -287,11 +287,16 @@ class Event(wx.Panel):
         if len(self.eventMaintainer.teams) > 28:
             self.deltaY = -2
             self.callInterval = 26
-            self.logoCheck = 850#850
+            self.logoCheck = 858#850
     def UpdateSchedulesData(self,interval=10000):
         self.eventMaintainer.getMatches()
         for panel in self.SchedulePanels:
-            self.SchedulePanels[panel].updateMatch(self.eventMaintainer.matches[self.eventMaintainer.showMatches[panel]])
+            if panel in self.eventMaintainer.showMatches:
+                self.SchedulePanels[panel].updateMatch(self.eventMaintainer.matches[self.eventMaintainer.showMatches[panel]])
+                self.SchedulePanels[panel].Show()
+            else:
+                self.SchedulePanels[panel].Hide()
+            
         wx.CallLater(interval,self.UpdateSchedulesData,interval=interval)
     def SetupSchedulePanels(self):
         XOffset = 0
@@ -420,6 +425,7 @@ class Event(wx.Panel):
                 self.RankPanels[panel].SetPosition((self.RankPanels[panel].GetPosition()[0],self.RankPanels[panel].GetPosition()[1]+self.deltaY))
         if self.RankPanels[len(self.RankPanels)-1].GetPosition()[1] == self.logoCheck:
              self.UpdateRankData()
+        
         
         wx.CallLater(self.callInterval,self.UpdateRankPositions)
 
